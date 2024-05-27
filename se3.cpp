@@ -42,6 +42,9 @@
  #include <ompl/config.h>
  #include <iostream>
  #include <vector>
+ #include <boost/format.hpp>
+ #include <fstream>
+
   
  namespace ob = ompl::base;
  namespace og = ompl::geometric;
@@ -83,11 +86,11 @@ class Cylinder
         bool isInside(float x, float y, float z)
         {
             float dist = sqrt((x - this->x)*(x - this->x) + (y - this->y)*(y - this->y));
-            if (dist > this->r && z < this->h)
+            if (dist > this->r)
             {
-                return true;
+                return false;
             }
-            return false;
+            return true;
         }
 };
 
@@ -125,6 +128,16 @@ std::vector<Cylinder> cylinders;
     //     }
     // }
 
+    if(abs(rot->x) > 0.15 || abs(rot->y) > 0.15)
+    {
+        return false;
+    }
+
+    if (pos->values[2]<0 || pos->values[2]>2)
+    {
+        return false;
+    }
+
     for (int i = 0; i < cylinders.size(); i++)
     {
         std::vector<double> positions;
@@ -132,7 +145,7 @@ std::vector<Cylinder> cylinders;
         positions.push_back(pos->values[1]);
         positions.push_back(pos->values[2]);
 
-        std::cout << "Checking " << positions[0] << " " << positions[1] << " " << positions[2] << std::endl;
+        // std::cout << "Checking " << positions[0] << " " << positions[1] << " " << positions[2] << std::endl;
 
         if (cylinders[i].isInside(positions[0], positions[1], positions[2]))
         {
@@ -144,6 +157,33 @@ std::vector<Cylinder> cylinders;
   
   
      
+ }
+
+ std::vector<double> Quat2Euler(double x, double y, double z, double w)
+ {
+    double sinr_cosp = 2 * (w * x + y * z);
+    double cosr_cosp = 1 - 2 * (x * x + y * y);
+    double roll = std::atan2(sinr_cosp, cosr_cosp);
+
+    // Pitch (y-axis rotation)
+    double sinp = 2 * (w * y - z * x);
+    double pitch;
+    if (std::abs(sinp) >= 1)
+        pitch = std::copysign(M_PI / 2, sinp); // Use 90 degrees if out of range
+    else
+        pitch = std::asin(sinp);
+
+    // Yaw (z-axis rotation)
+    double siny_cosp = 2 * (w * z + x * y);
+    double cosy_cosp = 1 - 2 * (y * y + z * z);
+    double yaw = std::atan2(siny_cosp, cosy_cosp);
+
+    std::vector<double> euler;
+    euler.push_back(roll*180/M_PI);
+    euler.push_back(pitch*180/M_PI);
+    euler.push_back(yaw*180/M_PI);
+
+    return euler;
  }
   
  void plan()
@@ -225,10 +265,15 @@ std::vector<Cylinder> cylinders;
          std::cout << "No solution found" << std::endl;
  }
   
- void planWithSimpleSetup()
+ std::vector<std::vector<double>> planWithSimpleSetup()
  {
      // construct the state space we are planning in
      auto space(std::make_shared<ob::SE3StateSpace>());
+
+     std::vector<ob::State*> fstates;
+     std::vector<std::vector<double>> fstate_db;
+
+
   
      // set the bounds for the R^3 part of SE(3)
      ob::RealVectorBounds bounds(3);
@@ -249,24 +294,33 @@ std::vector<Cylinder> cylinders;
     start[0] = 0.0;
     start[1] = 0.0;
     start[2] = 1.0;
+    start[3] = 0.0;
+    start[4] = 0.0;
+    start[5] = 0.0;
+    start[6] = 1.0;
+
 
   
      // create a random goal state
      ob::ScopedState<> goal(space);
      goal.random();
-    goal[0] = 4.5;
-    goal[1] = 4.5;
+    goal[0] = 5;
+    goal[1] = 0;
     goal[2] = 1.0;
+    goal[3] = 0.0;
+    goal[4] = 0.0;
+    goal[5] = 0.0;
+    goal[6] = 1.0;
   
      // set the start and goal states
-     ss.setStartAndGoalStates(start, goal);
+     ss.setStartAndGoalStates(start, goal, 0.3);
   
      // this call is optional, but we put it in to get more output information
      ss.setup();
      ss.print();
   
      // attempt to solve the problem within one second of planning time
-     ob::PlannerStatus solved = ss.solve(1.0);
+     ob::PlannerStatus solved = ss.solve(5.0);
   
      if (solved)
      {
@@ -274,29 +328,80 @@ std::vector<Cylinder> cylinders;
          // print the path to screen
          ss.simplifySolution();
          ss.getSolutionPath().print(std::cout);
+
+        fstates = ss.getSolutionPath().getStates();
+
+        for(int i=0;i<fstates.size();i++)
+        {
+            const auto *se3state = fstates[i]->as<ob::SE3StateSpace::StateType>();
+            const auto *pos = se3state->as<ob::RealVectorStateSpace::StateType>(0);
+            const auto *rot = se3state->as<ob::SO3StateSpace::StateType>(1);
+
+            std::vector<double> positions;
+            positions.push_back(pos->values[0]);
+            positions.push_back(pos->values[1]);
+            positions.push_back(pos->values[2]);
+            
+            std::vector<double> euler = Quat2Euler(rot->x, rot->y, rot->z, rot->w);
+            positions.push_back(euler[0]);
+            positions.push_back(euler[1]);
+            positions.push_back(euler[2]);
+
+            fstate_db.push_back(positions);
+        }
+
+        return fstate_db;
+        
      }
      else
          std::cout << "No solution found" << std::endl;
+
+    return fstate_db;
  }
   
  int main(int /*argc*/, char ** /*argv*/)
  {
     
-    Cylinder c1(1,1,1,10000);
-    Cylinder c2(2,2,1,10000);
-    Cylinder c3(3,3,1,10000); 
+    Cylinder c1(2,0,1,10000);
+    Cylinder c2(2,1,1,10000);
+    Cylinder c3(2,2,1,10000);
+    Cylinder c4(2,3,1,10000);
+    Cylinder c5(2,-1,1,10000);
+    Cylinder c6(2,-2,1,10000);
+    Cylinder c7(2,-3,1,10000);
 
     cylinders.push_back(c1);
     cylinders.push_back(c2);
     cylinders.push_back(c3);
+    cylinders.push_back(c4);
+    cylinders.push_back(c5);
+    cylinders.push_back(c6);
+    cylinders.push_back(c7);
 
     std::cout << "OMPL version: " << OMPL_VERSION << std::endl;
   
     //  plan();
   
      std::cout << std::endl << std::endl;
+
+     std::vector<std::vector<double>> fstate_db = planWithSimpleSetup();
   
-     planWithSimpleSetup();
+     for (int i = 0; i < fstate_db.size(); i++)
+     {
+        std::cout << 
+        boost::format("X: %f, Y: %f, Z: %f, Roll: %f, Pitch: %f, Yaw: %f\n") % fstate_db[i][0] % fstate_db[i][1] % fstate_db[i][2] % fstate_db[i][3] % fstate_db[i][4] % fstate_db[i][5];
+     }
+
+    //  write to file
+    std::ofstream file;
+    file.open("path.txt");
+    for (int i = 0; i < fstate_db.size(); i++)
+    {
+        file << 
+        boost::format("%f, %f, %f\n") % fstate_db[i][0] % fstate_db[i][1] % fstate_db[i][2] ;
+    }
+
+    file.close();
   
      return 0;
  }
