@@ -28,7 +28,7 @@
   
      // define start state
      base::ScopedState<base::SE3StateSpace> start(setup.getSpaceInformation());
-     start->setX(-4.96);
+     start->setX(-10.96);
      start->setY(-40.62);
      start->setZ(70.57);
      start->rotation().setIdentity();
