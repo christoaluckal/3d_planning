@@ -149,32 +149,42 @@ ob::Cost CustomClearance::stateCost(const ob::State* s) const
 {
     const auto* state2D =
              s->as<ob::RealVectorStateSpace::StateType>();
-    std::cout << state2D->values[0];
+    // std::cout << state2D->values[0];
     // return ob::Cost(this->si_->getStateValidityChecker()->clearance(s));
-    return ob::Cost(double(rand()%10));
+    if(state2D->values[0]<0.5 && state2D->values[1]>0.5)
+    { 
+        return ob::Cost(double(1));
+    }
+    else{
+        return ob::Cost(double(5));
+    }
+    
 }
 
 bool CustomClearance::isCostBetterThan(ob::Cost c1, ob::Cost c2) const
 {
-    return c1.value() > c2.value() + 1;
+    return c1.value() < c2.value();
 }
 
 ob::Cost CustomClearance::combineCosts(ob::Cost c1, ob::Cost c2) const
 {
-    if (c1.value() < c2.value())
-        return c1;
-    else
-        return c2;
+    // if (c1.value() < c2.value())
+    //     return c1;
+    // else
+    //     return c2;
+
+    return ob::Cost(c1.value()+c2.value());
 }
 
 ob::Cost CustomClearance::identityCost() const
 {
-    return ob::Cost(std::numeric_limits<double>::infinity());
+    // return ob::Cost(std::numeric_limits<double>::infinity());
+    return ob::Cost(0);
 }
 
 ob::Cost CustomClearance::infiniteCost() const
 {
-    return ob::Cost(-std::numeric_limits<double>::infinity());
+    return ob::Cost(std::numeric_limits<double>::infinity());
 }
 
 ob::Cost CustomClearance::motionCost(const ob::State *s1, const ob::State *s2) const
@@ -350,6 +360,9 @@ ob::OptimizationObjectivePtr CustomObjective(const ob::SpaceInformationPtr& si);
              << pdef->getSolutionPath()->length()
              << " with an optimization objective value of "
              << pdef->getSolutionPath()->cost(pdef->getOptimizationObjective()) << std::endl;
+
+        std::vector<ob::State*> fstates;
+        pdef->getSolutionPath()->print(std::cout);
   
          // If a filename was specified, output the path as a matrix to
          // that file for visualization
