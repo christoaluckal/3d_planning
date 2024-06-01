@@ -128,6 +128,63 @@
          return sqrt((x-0.5)*(x-0.5) + (y-0.5)*(y-0.5)) - 0.25;
      }
  };
+
+ class CustomClearance : public ob::OptimizationObjective
+{
+public:
+    CustomClearance(const ob::SpaceInformationPtr &si) :
+        ob::OptimizationObjective(si) {}
+ 
+        virtual ob::Cost stateCost(const ob::State* s) const;
+        virtual bool isCostBetterThan(ob::Cost c1, ob::Cost c2) const;
+        virtual ob::Cost motionCost(const ob::State *s1, const ob::State *s2) const;
+        virtual ob::Cost combineCosts(ob::Cost c1, ob::Cost c2) const;
+        virtual ob::Cost identityCost() const;
+        virtual ob::Cost infiniteCost() const;
+};
+
+
+
+ob::Cost CustomClearance::stateCost(const ob::State* s) const
+{
+    const auto* state2D =
+             s->as<ob::RealVectorStateSpace::StateType>();
+    std::cout << state2D->values[0];
+    // return ob::Cost(this->si_->getStateValidityChecker()->clearance(s));
+    return ob::Cost(double(rand()%10));
+}
+
+bool CustomClearance::isCostBetterThan(ob::Cost c1, ob::Cost c2) const
+{
+    return c1.value() > c2.value() + 1;
+}
+
+ob::Cost CustomClearance::combineCosts(ob::Cost c1, ob::Cost c2) const
+{
+    if (c1.value() < c2.value())
+        return c1;
+    else
+        return c2;
+}
+
+ob::Cost CustomClearance::identityCost() const
+{
+    return ob::Cost(std::numeric_limits<double>::infinity());
+}
+
+ob::Cost CustomClearance::infiniteCost() const
+{
+    return ob::Cost(-std::numeric_limits<double>::infinity());
+}
+
+ob::Cost CustomClearance::motionCost(const ob::State *s1, const ob::State *s2) const
+{
+    return this->combineCosts(this->stateCost(s1), this->stateCost(s2));
+}
+
+
+
+ob::OptimizationObjectivePtr CustomObjective(const ob::SpaceInformationPtr& si);
   
  ob::OptimizationObjectivePtr getPathLengthObjective(const ob::SpaceInformationPtr& si);
   
@@ -221,6 +278,17 @@
              break;
      }
  }
+
+ ob::OptimizationObjectivePtr CustomObjective(const ob::SpaceInformationPtr& si)
+{
+    // ob::OptimizationObjectivePtr obj(new CustomClearance(si));
+    // return obj;
+
+    return std::make_shared<CustomClearance>(si);
+}
+
+
+
   
  void plan(double runTime, optimalPlanner plannerType, planningObjective objectiveType, const std::string& outputFile)
  {
@@ -259,7 +327,8 @@
   
      // Create the optimization objective specified by our command-line argument.
      // This helper function is simply a switch statement.
-     pdef->setOptimizationObjective(allocateObjective(si, objectiveType));
+    //  pdef->setOptimizationObjective(allocateObjective(si, objectiveType));
+    pdef->setOptimizationObjective(CustomObjective(si));
   
      // Construct the optimal planner specified by our command line argument.
      // This helper function is simply a switch statement.

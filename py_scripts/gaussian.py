@@ -68,7 +68,7 @@ xl = 50
 yl = 50
 landscapes = 25
 
-gaussian_list = [[np.random.uniform(-xl,xl),np.random.uniform(-yl,yl),1,np.random.uniform(2,5)] for _ in range(landscapes)]
+gaussian_list = [[np.random.uniform(-xl,xl),np.random.uniform(-yl,yl),1,np.random.uniform(4,8)] for _ in range(landscapes)]
 
 ls,x,y = createLandscape(xl,yl,gaussians=gaussian_list,z_scale=1000,landscape_count=landscapes)
 
