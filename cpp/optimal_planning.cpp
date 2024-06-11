@@ -122,10 +122,11 @@
          // Extract the robot's (x,y) position from its state
          double x = state2D->values[0];
          double y = state2D->values[1];
+         double z = state2D->values[2];
   
          // Distance formula between two points, offset by the circle's
          // radius
-         return sqrt((x-0.5)*(x-0.5) + (y-0.5)*(y-0.5)) - 0.25;
+         return sqrt((x-0.5)*(x-0.5) + (y-0.5)*(y-0.5) + (z-0.5)*(z-0.5)) - 0.25;
      }
  };
 
@@ -147,27 +148,31 @@ public:
 
 ob::Cost CustomClearance::stateCost(const ob::State* s) const
 {
+    // std::cout << "stateCost\n";
     const auto* state2D =
              s->as<ob::RealVectorStateSpace::StateType>();
     // std::cout << state2D->values[0];
     // return ob::Cost(this->si_->getStateValidityChecker()->clearance(s));
-    if(state2D->values[0]<0.5 && state2D->values[1]>0.5)
+    if(state2D->values[0]<0.5 && state2D->values[1]<0.5 && state2D->values[2]<0.5)
     { 
-        return ob::Cost(double(1));
-    }
-    else{
         return ob::Cost(double(5));
     }
+    else{
+        return ob::Cost(double(1));
+    }
+
     
 }
 
 bool CustomClearance::isCostBetterThan(ob::Cost c1, ob::Cost c2) const
 {
+    // std::cout << "isCostBetterThan\n";
     return c1.value() < c2.value();
 }
 
 ob::Cost CustomClearance::combineCosts(ob::Cost c1, ob::Cost c2) const
 {
+    // std::cout << "combineCosts\n";
     // if (c1.value() < c2.value())
     //     return c1;
     // else
@@ -178,17 +183,20 @@ ob::Cost CustomClearance::combineCosts(ob::Cost c1, ob::Cost c2) const
 
 ob::Cost CustomClearance::identityCost() const
 {
+    // std::cout << "identityCost\n";
     // return ob::Cost(std::numeric_limits<double>::infinity());
     return ob::Cost(0);
 }
 
 ob::Cost CustomClearance::infiniteCost() const
 {
+    // std::cout << "infiniteCost\n";
     return ob::Cost(std::numeric_limits<double>::infinity());
 }
 
 ob::Cost CustomClearance::motionCost(const ob::State *s1, const ob::State *s2) const
 {
+    // std::cout << "motionCost\n";
     return this->combineCosts(this->stateCost(s1), this->stateCost(s2));
 }
 
@@ -304,7 +312,7 @@ ob::OptimizationObjectivePtr CustomObjective(const ob::SpaceInformationPtr& si);
  {
      // Construct the robot state space in which we're planning. We're
      // planning in [0,1]x[0,1], a subset of R^2.
-     auto space(std::make_shared<ob::RealVectorStateSpace>(2));
+     auto space(std::make_shared<ob::RealVectorStateSpace>(3));
   
      // Set the bounds of space to be in [0,1].
      space->setBounds(0.0, 1.0);
@@ -322,12 +330,14 @@ ob::OptimizationObjectivePtr CustomObjective(const ob::SpaceInformationPtr& si);
      ob::ScopedState<> start(space);
      start->as<ob::RealVectorStateSpace::StateType>()->values[0] = 0.0;
      start->as<ob::RealVectorStateSpace::StateType>()->values[1] = 0.0;
+     start->as<ob::RealVectorStateSpace::StateType>()->values[2] = 0.0;
   
      // Set our robot's goal state to be the top-right corner of the
      // environment, or (1,1).
      ob::ScopedState<> goal(space);
      goal->as<ob::RealVectorStateSpace::StateType>()->values[0] = 1.0;
      goal->as<ob::RealVectorStateSpace::StateType>()->values[1] = 1.0;
+     goal->as<ob::RealVectorStateSpace::StateType>()->values[2] = 1.0;
   
      // Create a problem instance
      auto pdef(std::make_shared<ob::ProblemDefinition>(si));

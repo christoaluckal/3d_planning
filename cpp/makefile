@@ -16,6 +16,10 @@ se3rigid: se3_rigid.o
 optimal: optimal_planning.o
 	$(CXX) $(CXX_FLAGS) -o exe_optimal optimal_planning.o $(LD_FLAGS) -L/usr/local/lib/
 	rm optimal_planning.o
+
+ppm: point2d.o
+	$(CXX) $(CXX_FLAGS) -o exe_point2d point2d.o $(LD_FLAGS) -L/usr/local/lib/
+	rm point2d.o
 	
 clean:
 	rm *.o
