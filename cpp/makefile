@@ -20,6 +20,10 @@ optimal: optimal_planning.o
 ppm: point2d.o
 	$(CXX) $(CXX_FLAGS) -o exe_point2d point2d.o $(LD_FLAGS) -L/usr/local/lib/
 	rm point2d.o
+
+optimal_ppm: optimal_image.o
+	$(CXX) $(CXX_FLAGS) -o exe_optimal_image optimal_image.o $(LD_FLAGS) -L/usr/local/lib/
+	rm optimal_image.o
 	
 clean:
 	rm *.o
